@@ -21,8 +21,8 @@ def get_current_sprint_info():
 
 
 def get_sprint_date_interval(sprint_info):
-    return [(sprint_info['start_date'] + datetime.timedelta(days=x)).strftime(dt_format) for x in range(0, 14)]
-
+    # return [(sprint_info['start_date'] + datetime.timedelta(days=x)).strftime(dt_format) for x in range(0, 14)]
+    return [(sprint_info['start_date'] + datetime.timedelta(days=x)).strftime(dt_format) for x in [0, 1, 2, 5, 6, 7, 8, 9, 12, 13]]
 
 def plot_chart(sprint_info, total_story_points, actual_remaining):
     team_name = "YaST" if team == "y" else "User space"
@@ -30,7 +30,7 @@ def plot_chart(sprint_info, total_story_points, actual_remaining):
 
     trace_ideal_burn = go.Scatter(
         x=date_list,
-        y=[x / 13.0 for x in range(13*total_story_points, -1, -total_story_points)],
+        y=[x / 9.0 for x in range(9*total_story_points, -1, -total_story_points)],
         name="Ideal stories remaining",
         textsrc="gohals:114:c99b6e",
         type="scatter",
@@ -58,13 +58,12 @@ def plot_chart(sprint_info, total_story_points, actual_remaining):
             title="Iteration Timeline (working days)",
             autorange=True,
             range=date_list,
-            type="date",
-            tickvals=date_list
+            type="category",
+            tickvals=date_list,
         ),
         yaxis=dict(
             title="Sum of Story Estimates (story points)",
             autorange=True,
-            range=[-1, 25],
             type="linear"
         )
     )
@@ -77,7 +76,7 @@ def init_actual_remaining(sprint_info):
     actual_remaining = dict.fromkeys(get_sprint_date_interval(sprint_info))
     for str_date in actual_remaining:
         date = datetime.datetime.strptime(str_date, dt_format)
-        if date <= datetime.datetime.today():
+        if date <= datetime.datetime.today() and date.weekday() < 5:
             actual_remaining[str_date] = 0
     return actual_remaining
 
@@ -112,8 +111,12 @@ def calculate_burn():
 
         if story.status.name == "Resolved":
             closed_on = story.closed_on
-            dt = datetime.datetime(closed_on.year, closed_on.month, closed_on.day, 0, 0, 0, 0).strftime(dt_format)
-            actual_remaining[dt] -= story_points
+            dt = datetime.datetime(closed_on.year, closed_on.month, closed_on.day, 0, 0, 0, 0)
+            if dt.weekday() == 5:
+                dt += datetime.timedelta(days=2)  # if resolved on Saturday, move to Monday
+            elif dt.weekday() == 6:
+                dt += datetime.timedelta(days=1)  # if resolved on Sunday, move to Monday
+            actual_remaining[dt.strftime(dt_format)] -= story_points
 
         print("[{0:2}] {1} -> {2}".format(num, story.subject, story_points))
     actual_remaining = adjust_remaining(actual_remaining, total_story_points)
