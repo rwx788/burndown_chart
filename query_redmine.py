@@ -21,8 +21,8 @@ def get_current_sprint_info():
 
 
 def get_sprint_date_interval(sprint_info):
-    # return [(sprint_info['start_date'] + datetime.timedelta(days=x)).strftime(dt_format) for x in range(0, 14)]
     return [(sprint_info['start_date'] + datetime.timedelta(days=x)).strftime(dt_format) for x in [0, 1, 2, 5, 6, 7, 8, 9, 12, 13]]
+
 
 def plot_chart(sprint_info, total_story_points, actual_remaining):
     team_name = "YaST" if team == "y" else "User space"
@@ -40,7 +40,8 @@ def plot_chart(sprint_info, total_story_points, actual_remaining):
     )
     trace_current_burn = go.Scatter(
         x=date_list,
-        y=list(actual_remaining.values()),
+        y=list(actual_remaining[date]['value'] for date in actual_remaining.keys()),
+        text=list('\n'.join(story) for date in actual_remaining.keys() for story in actual_remaining[date]['story_list']),
         name="Actual stories remaining",
         textsrc="gohals:114:c99b6e",
         type="scatter",
@@ -51,8 +52,6 @@ def plot_chart(sprint_info, total_story_points, actual_remaining):
     data = go.Data([trace_ideal_burn, trace_current_burn])
     layout = go.Layout(
         autosize=True,
-        height=600,
-        width=1000,
         title="Sprint " + str(sprint_info['num']) + " - Burndown chart - " + team_name + " QSF team",
         xaxis=dict(
             title="Iteration Timeline (working days)",
@@ -73,11 +72,11 @@ def plot_chart(sprint_info, total_story_points, actual_remaining):
 
 
 def init_actual_remaining(sprint_info):
-    actual_remaining = dict.fromkeys(get_sprint_date_interval(sprint_info))
-    for str_date in actual_remaining:
+    actual_remaining = {}
+    for str_date in get_sprint_date_interval(sprint_info):
         date = datetime.datetime.strptime(str_date, dt_format)
         if date <= datetime.datetime.today() and date.weekday() < 5:
-            actual_remaining[str_date] = 0
+            actual_remaining[str_date] = {'value': 0, 'story_list': []}
     return actual_remaining
 
 
@@ -93,9 +92,9 @@ def query_redmine(sprint_info):
 def adjust_remaining(actual_remaining, total_story_points):
     remaining_story_points = total_story_points
     for str_date in actual_remaining:
-        if actual_remaining[str_date]:
-            remaining_story_points += actual_remaining[str_date]
-            actual_remaining[str_date] = remaining_story_points
+        if actual_remaining[str_date]['value']:
+            remaining_story_points += actual_remaining[str_date]['value']
+            actual_remaining[str_date]['value'] = remaining_story_points
     return actual_remaining
 
 
@@ -116,7 +115,8 @@ def calculate_burn():
                 dt += datetime.timedelta(days=2)  # if resolved on Saturday, move to Monday
             elif dt.weekday() == 6:
                 dt += datetime.timedelta(days=1)  # if resolved on Sunday, move to Monday
-            actual_remaining[dt.strftime(dt_format)] -= story_points
+            actual_remaining[dt.strftime(dt_format)]['value'] -= story_points
+            actual_remaining[dt.strftime(dt_format)]['story_list'].append("[" + str(story_points) + "] @" + story.assigned_to.name + ": " + story.subject)
 
         print("[{0:2}] {1} -> {2}".format(num, story.subject, story_points))
     actual_remaining = adjust_remaining(actual_remaining, total_story_points)
@@ -126,11 +126,11 @@ def calculate_burn():
 def create_burndown_chart(actual_remaining, total_story_points):
     str_today_date = datetime.datetime.today().strftime(dt_format)
     str_yesterday_date = (datetime.datetime.today() - datetime.timedelta(days=1)).strftime(dt_format)
-    if actual_remaining[str_today_date] == 0:
+    if actual_remaining[str_today_date]['value'] == 0:
         if sprint_info['start_date'] == datetime.datetime.today():
-            actual_remaining[str_today_date] = total_story_points
+            actual_remaining[str_today_date]['value'] = total_story_points
         else:
-            actual_remaining[str_today_date] = actual_remaining[str_yesterday_date]
+            actual_remaining[str_today_date]['value'] = actual_remaining[str_yesterday_date]['value']
 
     plot_chart(sprint_info, total_story_points, actual_remaining)
 
