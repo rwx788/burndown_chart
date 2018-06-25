@@ -7,6 +7,7 @@ import plotly.graph_objs as go
 dt_format = '%Y-%m-%d'
 team = 'y'
 
+
 def get_current_sprint_info():
     sprint0_end = datetime.datetime(2017, 9, 26, 0, 0, 0, 0)
     today = datetime.datetime.today()
@@ -98,7 +99,7 @@ def adjust_remaining(actual_remaining, total_story_points):
     return actual_remaining
 
 
-def calculate_burn():
+def calculate_burn(stories, sprint_info):
     total_story_points = 0
     actual_remaining = init_actual_remaining(sprint_info)
     for num, story in enumerate(stories, start=1):
@@ -123,7 +124,7 @@ def calculate_burn():
     return actual_remaining, total_story_points
 
 
-def create_burndown_chart(actual_remaining, total_story_points):
+def create_burndown_chart(actual_remaining, total_story_points, sprint_info):
     str_today_date = datetime.datetime.today().strftime(dt_format)
     str_yesterday_date = (datetime.datetime.today() - datetime.timedelta(days=1)).strftime(dt_format)
     if actual_remaining[str_today_date]['value'] == 0:
@@ -135,7 +136,12 @@ def create_burndown_chart(actual_remaining, total_story_points):
     plot_chart(sprint_info, total_story_points, actual_remaining)
 
 
-sprint_info = get_current_sprint_info()
-stories = query_redmine(sprint_info)
-actual_remaining, total_story_points = calculate_burn()
-create_burndown_chart(actual_remaining, total_story_points)
+def main():
+    sprint_info = get_current_sprint_info()
+    stories = query_redmine(sprint_info)
+    actual_remaining, total_story_points = calculate_burn(stories, sprint_info)
+    create_burndown_chart(actual_remaining, total_story_points, sprint_info)
+
+
+if __name__ == "__main__":
+    main()
