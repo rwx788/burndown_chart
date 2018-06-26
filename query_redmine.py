@@ -29,6 +29,11 @@ def plot_chart(sprint_info, total_story_points, actual_remaining):
     team_name = "YaST" if team == "y" else "User space"
     date_list = get_sprint_date_interval(sprint_info)
 
+    text_list = []
+    for date in actual_remaining.keys():
+        story_list = actual_remaining[date]['story_list']
+        text_list.append('<br>'.join(story_list)) if len(story_list) else text_list.append(None)
+
     trace_ideal_burn = go.Scatter(
         x=date_list,
         y=[x / 9.0 for x in range(9*total_story_points, -1, -total_story_points)],
@@ -42,7 +47,7 @@ def plot_chart(sprint_info, total_story_points, actual_remaining):
     trace_current_burn = go.Scatter(
         x=date_list,
         y=list(actual_remaining[date]['value'] for date in actual_remaining.keys()),
-        text=list('\n'.join(story) for date in actual_remaining.keys() for story in actual_remaining[date]['story_list']),
+        hovertext=text_list,
         name="Actual stories remaining",
         textsrc="gohals:114:c99b6e",
         type="scatter",
@@ -65,7 +70,7 @@ def plot_chart(sprint_info, total_story_points, actual_remaining):
             title="Sum of Story Estimates (story points)",
             autorange=True,
             type="linear"
-        )
+        ),
     )
 
     fig = go.Figure(data=data, layout=layout)
