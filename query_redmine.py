@@ -93,7 +93,7 @@ def query_redmine(sprint_info):
 def adjust_remaining(actual_remaining, total_story_points):
     remaining_story_points = total_story_points
     for str_date in actual_remaining:
-        if actual_remaining[str_date]['value']:
+        if actual_remaining[str_date]:
             remaining_story_points += actual_remaining[str_date]['value']
             actual_remaining[str_date]['value'] = remaining_story_points
     return actual_remaining
