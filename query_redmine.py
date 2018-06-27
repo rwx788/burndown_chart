@@ -42,8 +42,9 @@ def plot_chart(sprint_info, total_story_points, actual_remaining):
         type="scatter",
         uid="2b2777",
         xsrc="gohals:114:5be4af",
-        ysrc="gohals:114:c99b6e"
-    )
+        ysrc="gohals:114:c99b6e",
+        hoverlabel=dict(font=dict(size=20))
+                                  )
     trace_current_burn = go.Scatter(
         x=date_list,
         y=list(actual_remaining[date]['value'] for date in actual_remaining.keys()),
@@ -53,7 +54,8 @@ def plot_chart(sprint_info, total_story_points, actual_remaining):
         type="scatter",
         uid="a7c235",
         xsrc="gohals:114:5be4af",
-        ysrc="gohals:114:d49a4c"
+        ysrc="gohals:114:d49a4c",
+        hoverlabel=dict(font=dict(size=20, color="white"))
     )
     data = go.Data([trace_ideal_burn, trace_current_burn])
     layout = go.Layout(
@@ -71,6 +73,7 @@ def plot_chart(sprint_info, total_story_points, actual_remaining):
             autorange=True,
             type="linear"
         ),
+        font=dict(family='Courier New, monospace', size=18, color='#7f7f7f')
     )
 
     fig = go.Figure(data=data, layout=layout)
