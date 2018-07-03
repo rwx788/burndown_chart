@@ -10,7 +10,8 @@ team = 'y'
 
 def get_current_sprint_info():
     sprint0_end = datetime.datetime(2017, 9, 26, 0, 0, 0, 0)
-    today = datetime.datetime.today()
+    dt_today = datetime.datetime.today()
+    today = datetime.datetime(dt_today.year, dt_today.month, dt_today.day, 0, 0, 0, 0)
 
     due_date = sprint0_end
     sprint_count = 0
@@ -84,7 +85,9 @@ def init_actual_remaining(sprint_info):
     actual_remaining = {}
     for str_date in get_sprint_date_interval(sprint_info):
         date = datetime.datetime.strptime(str_date, dt_format)
-        if date <= datetime.datetime.today() and date.weekday() < 5:
+        dt_today = datetime.datetime.today()
+        today = datetime.datetime(dt_today.year, dt_today.month, dt_today.day, 0, 0, 0, 0)
+        if date <= today and date.weekday() < 5:
             actual_remaining[str_date] = {'value': 0, 'story_list': []}
     return actual_remaining
 
@@ -98,12 +101,23 @@ def query_redmine(sprint_info):
     return rm.issue.filter(project_ids=project_list, status_id='*', due_date=date_interval, subject="~[" + team + "]")
 
 
-def adjust_remaining(actual_remaining, total_story_points):
+def adjust_remaining(actual_remaining, total_story_points, sprint_info):
     remaining_story_points = total_story_points
     for str_date in actual_remaining:
         if actual_remaining[str_date]:
             remaining_story_points += actual_remaining[str_date]['value']
             actual_remaining[str_date]['value'] = remaining_story_points
+
+    str_today_date = datetime.datetime.today().strftime(dt_format)
+    str_yesterday_date = (datetime.datetime.today() - datetime.timedelta(days=1)).strftime(dt_format)
+    if actual_remaining[str_today_date]['value'] == 0:
+        dt_today = datetime.datetime.today()
+        today = datetime.datetime(dt_today.year, dt_today.month, dt_today.day, 0, 0, 0, 0)
+        if sprint_info['start_date'] == today:
+            actual_remaining[str_today_date]['value'] = total_story_points
+        else:
+            actual_remaining[str_today_date]['value'] = actual_remaining[str_yesterday_date]['value']
+
     return actual_remaining
 
 
@@ -128,27 +142,15 @@ def calculate_burn(stories, sprint_info):
             actual_remaining[dt.strftime(dt_format)]['story_list'].append("[" + str(story_points) + "] @" + story.assigned_to.name + ": " + story.subject)
 
         print("[{0:2}] {1} -> {2}".format(num, story.subject, story_points))
-    actual_remaining = adjust_remaining(actual_remaining, total_story_points)
+    actual_remaining = adjust_remaining(actual_remaining, total_story_points, sprint_info)
     return actual_remaining, total_story_points
-
-
-def create_burndown_chart(actual_remaining, total_story_points, sprint_info):
-    str_today_date = datetime.datetime.today().strftime(dt_format)
-    str_yesterday_date = (datetime.datetime.today() - datetime.timedelta(days=1)).strftime(dt_format)
-    if actual_remaining[str_today_date]['value'] == 0:
-        if sprint_info['start_date'] == datetime.datetime.today():
-            actual_remaining[str_today_date]['value'] = total_story_points
-        else:
-            actual_remaining[str_today_date]['value'] = actual_remaining[str_yesterday_date]['value']
-
-    plot_chart(sprint_info, total_story_points, actual_remaining)
 
 
 def main():
     sprint_info = get_current_sprint_info()
     stories = query_redmine(sprint_info)
     actual_remaining, total_story_points = calculate_burn(stories, sprint_info)
-    create_burndown_chart(actual_remaining, total_story_points, sprint_info)
+    plot_chart(sprint_info, total_story_points, actual_remaining)
 
 
 if __name__ == "__main__":
