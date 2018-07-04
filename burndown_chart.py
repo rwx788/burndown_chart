@@ -97,7 +97,7 @@ def query_redmine(sprint_info):
     str_start_date = sprint_info['start_date'].strftime(dt_format)
     str_due_date = sprint_info['due_date'].strftime(dt_format)
     date_interval = '><' + str_start_date + '|' + str_due_date
-    rm = Redmine('https://progress.opensuse.org', key='dc97b2582634ac80ee3a1cc388c324d6ff413a44')
+    rm = Redmine('https://progress.opensuse.org', key='XXXXXXX')
     return rm.issue.filter(project_ids=project_list, status_id='*', due_date=date_interval, subject="~[" + team + "]")
 
 
@@ -132,14 +132,16 @@ def calculate_burn(stories, sprint_info):
         total_story_points += story_points
 
         if story.status.name == "Resolved":
-            closed_on = story.closed_on
-            dt = datetime.datetime(closed_on.year, closed_on.month, closed_on.day, 0, 0, 0, 0)
-            if dt.weekday() == 5:
-                dt += datetime.timedelta(days=2)  # if resolved on Saturday, move to Monday
-            elif dt.weekday() == 6:
-                dt += datetime.timedelta(days=1)  # if resolved on Sunday, move to Monday
-            actual_remaining[dt.strftime(dt_format)]['value'] -= story_points
-            actual_remaining[dt.strftime(dt_format)]['story_list'].append("[" + str(story_points) + "] @" + story.assigned_to.name + ": " + story.subject)
+            closed_on = datetime.datetime(story.closed_on.year, story.closed_on.month, story.closed_on.day, 0, 0, 0, 0)
+            day_before_sprint_start = sprint_info['start_date'] - datetime.timedelta(days=1)
+            if closed_on == day_before_sprint_start:  # if resolved the day before starting the sprint
+                closed_on += datetime.timedelta(days=1)
+            if closed_on.weekday() == 5:
+                closed_on += datetime.timedelta(days=2)  # if resolved on Saturday, move to Monday
+            elif closed_on.weekday() == 6:
+                closed_on += datetime.timedelta(days=1)  # if resolved on Sunday, move to Monday
+            actual_remaining[closed_on.strftime(dt_format)]['value'] -= story_points
+            actual_remaining[closed_on.strftime(dt_format)]['story_list'].append("[" + str(story_points) + "] @" + story.assigned_to.name + ": " + story.subject)
 
         print("[{0:2}] {1} -> {2}".format(num, story.subject, story_points))
     actual_remaining = adjust_remaining(actual_remaining, total_story_points, sprint_info)
