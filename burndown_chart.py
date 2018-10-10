@@ -109,6 +109,8 @@ def query_redmine(sprint_info):
 
     # Exclude epics
     issues = [issue for issue in issues if "[epic]" not in issue.subject]
+    # exclude sagas
+    issues = [issue for issue in issues if "[saga]" not in issue.subject]
     # Need to add day to due_date, as it's midnight
     filter_due_date = sprint_info['due_date']
     # Filter out issues resolved outside of the sprint
