@@ -1,4 +1,6 @@
+import argparse
 import datetime
+import sys
 from redminelib import Redmine
 from redminelib.exceptions import ResourceAttrError
 from plotly.offline import plot
@@ -6,19 +8,24 @@ import plotly.graph_objs as go
 
 dt_format = '%Y-%m-%d'
 team = 'y'
+dt_today = datetime.datetime.today()
+today = datetime.datetime(dt_today.year, dt_today.month, dt_today.day, 0, 0, 0, 0)
 
-
-def get_current_sprint_info():
-    sprint0_end = datetime.datetime(2017, 9, 26, 0, 0, 0, 0)
-    dt_today = datetime.datetime.today()
-    today = datetime.datetime(dt_today.year, dt_today.month, dt_today.day, 0, 0, 0, 0)
-
-    due_date = sprint0_end
+def get_sprint_info(sprint_number = 0):
+    global today
+    # Init with first sprint due date
+    due_date = datetime.datetime(2017, 9, 26, 23, 59, 59, 000)
     sprint_count = 0
-    while due_date < today:
+    while True:
             sprint_count += 1
-            start_date = due_date + datetime.timedelta(days=1)
+            start_date = due_date + datetime.timedelta(minutes=1)
             due_date += datetime.timedelta(days=14)
+            # If check history for passed sprints, override today with last day of the sprint
+            if sprint_count == sprint_number and due_date <= today:
+                today = due_date
+                break
+            if due_date > today:
+                break
     return {'num': sprint_count, 'start_date': start_date, 'due_date': due_date}
 
 
@@ -85,8 +92,6 @@ def init_actual_remaining(sprint_info):
     actual_remaining = {}
     for str_date in get_sprint_date_interval(sprint_info):
         date = datetime.datetime.strptime(str_date, dt_format)
-        dt_today = datetime.datetime.today()
-        today = datetime.datetime(dt_today.year, dt_today.month, dt_today.day, 0, 0, 0, 0)
         if date <= today and date.weekday() < 5:
             actual_remaining[str_date] = {'value': 0, 'story_list': []}
     return actual_remaining
@@ -98,8 +103,19 @@ def query_redmine(sprint_info):
     str_due_date = sprint_info['due_date'].strftime(dt_format)
     date_interval = '><' + str_start_date + '|' + str_due_date
     rm = Redmine('https://progress.opensuse.org', key='XXXXXXX')
-    return rm.issue.filter(project_ids=project_list, status_id='*', due_date=date_interval, subject="~[" + team + "]")
+    issues = rm.issue.filter(project_ids=project_list, status_id='*', due_date=date_interval, subject="~[" + team + "]")
+    print("Sprint start date: " + str(sprint_info['start_date']))
+    print("Sprint end date:   " + str(sprint_info['due_date']))
 
+    # Exclude epics
+    issues = [issue for issue in issues if "[epic]" not in issue.subject]
+    # exclude sagas
+    issues = [issue for issue in issues if "[saga]" not in issue.subject]
+    # Need to add day to due_date, as it's midnight
+    filter_due_date = sprint_info['due_date']
+    # Filter out issues resolved outside of the sprint
+    issues = [issue for issue in issues if (issue.status.name != "Resolved" or sprint_info['start_date'] <= issue.closed_on  <= filter_due_date)]
+    return issues
 
 def adjust_remaining(actual_remaining, total_story_points, sprint_info):
     remaining_story_points = total_story_points
@@ -108,15 +124,9 @@ def adjust_remaining(actual_remaining, total_story_points, sprint_info):
             remaining_story_points += actual_remaining[str_date]['value']
             actual_remaining[str_date]['value'] = remaining_story_points
 
-    str_today_date = datetime.datetime.today().strftime(dt_format)
-    str_yesterday_date = (datetime.datetime.today() - datetime.timedelta(days=1)).strftime(dt_format)
+    str_today_date = today.strftime(dt_format)
     if actual_remaining[str_today_date]['value'] == 0:
-        dt_today = datetime.datetime.today()
-        today = datetime.datetime(dt_today.year, dt_today.month, dt_today.day, 0, 0, 0, 0)
-        if sprint_info['start_date'] == today:
-            actual_remaining[str_today_date]['value'] = total_story_points
-        else:
-            actual_remaining[str_today_date]['value'] = actual_remaining[str_yesterday_date]['value']
+        actual_remaining[str_today_date]['value'] = actual_remaining[str_today_date]['value']
 
     return actual_remaining
 
@@ -130,7 +140,8 @@ def calculate_burn(stories, sprint_info):
         except ResourceAttrError:
             story_points = 0
         total_story_points += story_points
-
+        # Print processed tickets
+        print("[{0:2}] {1} -> {2}".format(num, story.subject, story_points))
         if story.status.name == "Resolved":
             closed_on = datetime.datetime(story.closed_on.year, story.closed_on.month, story.closed_on.day, 0, 0, 0, 0)
             day_before_sprint_start = sprint_info['start_date'] - datetime.timedelta(days=1)
@@ -143,13 +154,15 @@ def calculate_burn(stories, sprint_info):
             actual_remaining[closed_on.strftime(dt_format)]['value'] -= story_points
             actual_remaining[closed_on.strftime(dt_format)]['story_list'].append("[" + str(story_points) + "] @" + story.assigned_to.name + ": " + story.subject)
 
-        print("[{0:2}] {1} -> {2}".format(num, story.subject, story_points))
     actual_remaining = adjust_remaining(actual_remaining, total_story_points, sprint_info)
     return actual_remaining, total_story_points
 
 
 def main():
-    sprint_info = get_current_sprint_info()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--sprint", help="Provide sprint number for which you want to see the burndown chart")
+    args = parser.parse_args()
+    sprint_info = get_sprint_info(int(args.sprint))
     stories = query_redmine(sprint_info)
     actual_remaining, total_story_points = calculate_burn(stories, sprint_info)
     plot_chart(sprint_info, total_story_points, actual_remaining)
