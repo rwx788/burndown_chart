@@ -114,7 +114,7 @@ def query_redmine(sprint_info):
     # Need to add day to due_date, as it's midnight
     filter_due_date = sprint_info['due_date']
     # Filter out issues resolved outside of the sprint
-    issues = [issue for issue in issues if (issue.status.name != "Resolved" or sprint_info['start_date'] <= issue.closed_on  <= filter_due_date)]
+    issues = [issue for issue in issues if (issue.status.name != "Resolved" and issue.status.name != "Rejected" or sprint_info['start_date'] <= issue.closed_on  <= filter_due_date)]
     return issues
 
 def adjust_remaining(actual_remaining, total_story_points, sprint_info):
@@ -142,7 +142,7 @@ def calculate_burn(stories, sprint_info):
         total_story_points += story_points
         # Print processed tickets
         print("[{0:2}] {1} -> {2}".format(num, story.subject, story_points))
-        if story.status.name == "Resolved":
+        if story.status.name == "Resolved" or story.status.name == "Rejected":
             closed_on = datetime.datetime(story.closed_on.year, story.closed_on.month, story.closed_on.day, 0, 0, 0, 0)
             day_before_sprint_start = sprint_info['start_date'] - datetime.timedelta(days=1)
             if closed_on == day_before_sprint_start:  # if resolved the day before starting the sprint
@@ -162,7 +162,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--sprint", help="Provide sprint number for which you want to see the burndown chart")
     args = parser.parse_args()
-    sprint_info = get_sprint_info(int(args.sprint))
+    sprint_info = get_sprint_info(int(args.sprint) if args.sprint else None)
     stories = query_redmine(sprint_info)
     actual_remaining, total_story_points = calculate_burn(stories, sprint_info)
     plot_chart(sprint_info, total_story_points, actual_remaining)
