@@ -96,6 +96,8 @@ def init_actual_remaining(sprint_info):
             actual_remaining[str_date] = {'value': 0, 'story_list': []}
     return actual_remaining
 
+def is_open(issue):
+    return issue.status.name != "Resolved" and issue.status.name != "Rejected"
 
 def query_redmine(sprint_info):
     project_list = ['suseqa', 'openqav3', 'openqatests']
@@ -103,18 +105,22 @@ def query_redmine(sprint_info):
     str_due_date = sprint_info['due_date'].strftime(dt_format)
     date_interval = '><' + str_start_date + '|' + str_due_date
     rm = Redmine('https://progress.opensuse.org', key='XXXXXXX')
-    issues = rm.issue.filter(project_ids=project_list, status_id='*', due_date=date_interval, subject="~[" + team + "]")
+    issues = rm.issue.filter( project_ids=project_list,
+                              status_id='*',
+                              due_date=date_interval,
+                              subject="~[" + team + "]" )
     print("Sprint start date: " + str(sprint_info['start_date']))
     print("Sprint end date:   " + str(sprint_info['due_date']))
 
-    # Exclude epics
-    issues = [issue for issue in issues if "[epic]" not in issue.subject]
-    # exclude sagas
-    issues = [issue for issue in issues if "[saga]" not in issue.subject]
+    # Exclude epics and sagas
+    issues = [issue for issue in issues if ('[epic]' or '[saga]') not in issue.subject]
+    # Exclude blocked
+    issues = [issue for issue in issues if issue.status.name != "Blocked"]
     # Need to add day to due_date, as it's midnight
     filter_due_date = sprint_info['due_date']
     # Filter out issues resolved outside of the sprint
-    issues = [issue for issue in issues if (issue.status.name != "Resolved" or sprint_info['start_date'] <= issue.closed_on  <= filter_due_date)]
+    issues = [issue for issue in issues if (is_open(issue) or
+                sprint_info['start_date'] <= issue.closed_on <= filter_due_date)]
     return issues
 
 def adjust_remaining(actual_remaining, total_story_points, sprint_info):
@@ -142,7 +148,7 @@ def calculate_burn(stories, sprint_info):
         total_story_points += story_points
         # Print processed tickets
         print("[{0:2}] {1} -> {2}".format(num, story.subject, story_points))
-        if story.status.name == "Resolved":
+        if not is_open(story):
             closed_on = datetime.datetime(story.closed_on.year, story.closed_on.month, story.closed_on.day, 0, 0, 0, 0)
             day_before_sprint_start = sprint_info['start_date'] - datetime.timedelta(days=1)
             if closed_on == day_before_sprint_start:  # if resolved the day before starting the sprint
@@ -162,7 +168,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--sprint", help="Provide sprint number for which you want to see the burndown chart")
     args = parser.parse_args()
-    sprint_info = get_sprint_info(int(args.sprint))
+    sprint_info = get_sprint_info(int(args.sprint) if args.sprint else None)
     stories = query_redmine(sprint_info)
     actual_remaining, total_story_points = calculate_burn(stories, sprint_info)
     plot_chart(sprint_info, total_story_points, actual_remaining)
