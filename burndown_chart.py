@@ -112,10 +112,8 @@ def query_redmine(sprint_info):
     print("Sprint start date: " + str(sprint_info['start_date']))
     print("Sprint end date:   " + str(sprint_info['due_date']))
 
-    # Exclude epics
-    issues = [issue for issue in issues if "[epic]" not in issue.subject]
-    # exclude sagas
-    issues = [issue for issue in issues if "[saga]" not in issue.subject]
+    # Exclude epics and sagas
+    issues = [issue for issue in issues if ('[epic]' or '[saga]') not in issue.subject]
     # Exclude blocked
     issues = [issue for issue in issues if issue.status.name != "Blocked"]
     # Need to add day to due_date, as it's midnight
