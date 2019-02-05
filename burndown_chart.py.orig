@@ -10,10 +10,15 @@ team = 'y'
 dt_today = datetime.datetime.today()
 today = datetime.datetime(dt_today.year, dt_today.month, dt_today.day, 0, 0, 0, 0)
 
+<<<<<<< HEAD
+
+def get_sprint_info(sprint_number=0):
+=======
 def get_sprint_info(sprint_number = None):
+>>>>>>> Make it work for future sprints
     global today
     # Init with first sprint due date
-    due_date = datetime.datetime(2017, 9, 26, 23, 59, 59, 999999)
+    due_date = datetime.datetime(2017, 9, 26, 23, 59, 59, 999)
     sprint_count = 0
     while True:
             sprint_count += 1
