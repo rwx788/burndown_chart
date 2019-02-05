@@ -111,10 +111,12 @@ def query_redmine(sprint_info):
     issues = [issue for issue in issues if "[epic]" not in issue.subject]
     # exclude sagas
     issues = [issue for issue in issues if "[saga]" not in issue.subject]
+    # Exclude blocked
+    issues = [issue for issue in issues if issue.status.name != "Blocked"]
     # Need to add day to due_date, as it's midnight
     filter_due_date = sprint_info['due_date']
     # Filter out issues resolved outside of the sprint
-    issues = [issue for issue in issues if (issue.status.name != "Resolved" and issue.status.name != "Rejected" or sprint_info['start_date'] <= issue.closed_on  <= filter_due_date)]
+    issues = [issue for issue in issues if (issue.status.name != "Resolved" and issue.status.name != "Rejected" or sprint_info['start_date'] <= issue.closed_on <= filter_due_date)]
     return issues
 
 def adjust_remaining(actual_remaining, total_story_points, sprint_info):
