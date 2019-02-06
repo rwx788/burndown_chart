@@ -4,7 +4,7 @@
   cd burndown_chart
   virtualenv -p /usr/bin/python3.6 burndown_chart_env
   source ./burndown_chart_env/bin/activate
-  pip install -r requirement.txt
+  pip install -r requirements.txt
   python3 burndown_chart.py
   deactivate
   ```

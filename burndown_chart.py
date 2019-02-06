@@ -1,6 +1,5 @@
 import argparse
 import datetime
-import sys
 from redminelib import Redmine
 from redminelib.exceptions import ResourceAttrError
 from plotly.offline import plot
@@ -11,7 +10,8 @@ team = 'y'
 dt_today = datetime.datetime.today()
 today = datetime.datetime(dt_today.year, dt_today.month, dt_today.day, 0, 0, 0, 0)
 
-def get_sprint_info(sprint_number = 0):
+
+def get_sprint_info(sprint_number=0):
     global today
     # Init with first sprint due date
     due_date = datetime.datetime(2017, 9, 26, 23, 59, 59, 000)
@@ -47,7 +47,6 @@ def plot_chart(sprint_info, total_story_points, actual_remaining):
         y=[x / 9.0 for x in range(9*total_story_points, -1, -total_story_points)],
         name="Ideal stories remaining",
         textsrc="gohals:114:c99b6e",
-        type="scatter",
         uid="2b2777",
         xsrc="gohals:114:5be4af",
         ysrc="gohals:114:c99b6e",
@@ -59,20 +58,17 @@ def plot_chart(sprint_info, total_story_points, actual_remaining):
         hovertext=text_list,
         name="Actual stories remaining",
         textsrc="gohals:114:c99b6e",
-        type="scatter",
         uid="a7c235",
         xsrc="gohals:114:5be4af",
         ysrc="gohals:114:d49a4c",
         hoverlabel=dict(font=dict(size=20, color="white"))
     )
-    data = go.Data([trace_ideal_burn, trace_current_burn])
     layout = go.Layout(
         autosize=True,
         title="Sprint " + str(sprint_info['num']) + " - Burndown chart - " + team_name + " QSF team",
         xaxis=dict(
             title="Iteration Timeline (working days)",
             autorange=True,
-            range=date_list,
             type="category",
             tickvals=date_list,
         ),
@@ -84,7 +80,7 @@ def plot_chart(sprint_info, total_story_points, actual_remaining):
         font=dict(family='Courier New, monospace', size=18, color='#7f7f7f')
     )
 
-    fig = go.Figure(data=data, layout=layout)
+    fig = go.Figure(data=[trace_ideal_burn, trace_current_burn], layout=layout)
     plot(fig)
 
 
@@ -96,8 +92,10 @@ def init_actual_remaining(sprint_info):
             actual_remaining[str_date] = {'value': 0, 'story_list': []}
     return actual_remaining
 
+
 def is_open(issue):
     return issue.status.name != "Resolved" and issue.status.name != "Rejected"
+
 
 def query_redmine(sprint_info):
     project_list = ['suseqa', 'openqav3', 'openqatests']
@@ -119,9 +117,10 @@ def query_redmine(sprint_info):
     # Need to add day to due_date, as it's midnight
     filter_due_date = sprint_info['due_date']
     # Filter out issues resolved outside of the sprint
-    issues = [issue for issue in issues if (is_open(issue) or
-                sprint_info['start_date'] <= issue.closed_on <= filter_due_date)]
+    issues = [issue for issue in issues if (is_open(issue) or sprint_info['start_date'] <=
+                                            issue.closed_on <= filter_due_date)]
     return issues
+
 
 def adjust_remaining(actual_remaining, total_story_points, sprint_info):
     remaining_story_points = total_story_points
